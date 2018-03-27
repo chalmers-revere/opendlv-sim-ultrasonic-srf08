@@ -42,21 +42,24 @@ opendlv::proxy::DistanceReading Sensor::step() noexcept
     std::lock_guard<std::mutex> lock(m_frameMutex);
     frame = m_frame;
   }
+  
+  float const sensorMin = 0.03f;
+  float const sensorMax = 6.0f;
 
   // TODO: Add offsets.
   double x1{frame.x()};
   double y1{frame.y()};
-  double x2{x1 + std::sin(m_yaw)};
-  double y2{y1 + std::cos(m_yaw)};
+  double x2{x1 + std::cos(frame.yaw() + m_yaw) * sensorMax};
+  double y2{y1 + std::sin(frame.yaw() + m_yaw) * sensorMax};
   Line line{x1, y1, x2, y2};
 
-  float minDistance = 0.0f;
+  float minDistance = sensorMax;
   for (Line wall : m_walls) {
     std::pair<bool, double> intersection = checkIntersectionAndDistance(line, wall);
     if (intersection.first) {
       float distance = static_cast<float>(intersection.second);
       if (distance < minDistance) {
-        minDistance = (distance > 0.0f) ? distance : 0.0f;
+        minDistance = (distance > sensorMin) ? distance : sensorMin;
       }
     }
   }
