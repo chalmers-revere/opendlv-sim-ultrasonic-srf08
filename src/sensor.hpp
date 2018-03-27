@@ -38,11 +38,10 @@ class Sensor {
 
  public:
   void setFrame(opendlv::sim::Frame const &) noexcept;
-  opendlv::proxy::VoltageReading step() noexcept;
+  opendlv::proxy::DistanceReading step() noexcept;
 
  private:
   std::pair<bool, double> checkIntersectionAndDistance(Line, Line) const noexcept;
-  float convertDistanceToIrVoltage(double) const noexcept;
 
  private:
   opendlv::sim::Frame m_frame;

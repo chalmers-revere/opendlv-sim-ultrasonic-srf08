@@ -55,6 +55,9 @@ int32_t main(int32_t argc, char **argv) {
         double y2{std::stof(coordinates[3])};
         Line line{x1, y1, x2, y2};
         walls.push_back(line);
+        if (VERBOSE) {
+          std::cout << "Added wall from [" << x1 << "," << y1 << "] to [" << x2 << "," << y2 << "]" << std::endl;
+        }
       }
     }
 
@@ -80,12 +83,12 @@ int32_t main(int32_t argc, char **argv) {
     while (od4.isRunning()) {
       std::this_thread::sleep_for(std::chrono::duration<double>(dt));
 
-      auto voltageReading = sensor.step();
+      auto distanceReading = sensor.step();
 
       cluon::data::TimeStamp sampleTime;
-      od4.send(voltageReading, sampleTime, ID);
+      od4.send(distanceReading, sampleTime, ID);
       if (VERBOSE) {
-        std::cout << "Sensor reading is " << voltageReading.voltage() << std::endl;
+        std::cout << "Sensor reading is " << distanceReading.distance() << " m." << std::endl;
       }
     }
   }
