@@ -42,6 +42,9 @@ int32_t main(int32_t argc, char **argv) {
   } else {
     uint32_t const ID{(commandlineArguments["id"].size() != 0) ? static_cast<uint32_t>(std::stoi(commandlineArguments["id"])) : 0};
     bool const VERBOSE{commandlineArguments.count("verbose") != 0};
+    uint16_t const CID = std::stoi(commandlineArguments["cid"]);
+    float const FREQ = std::stof(commandlineArguments["freq"]);
+    double const DT = 1.0 / FREQ;
 
     std::vector<Line> walls;
     std::ifstream input(commandlineArguments["map-file"]);
@@ -68,29 +71,33 @@ int32_t main(int32_t argc, char **argv) {
 
     Sensor sensor{walls, X, Y, YAW};
 
-    auto onEnvelope{[&FRAME_ID, &sensor](cluon::data::Envelope &&envelope)
+    auto onFrame{[&FRAME_ID, &sensor](cluon::data::Envelope &&envelope)
       {
-        if (envelope.dataType() == opendlv::sim::Frame::ID() 
-            && envelope.senderStamp() == FRAME_ID) {
+        uint32_t const senderStamp = envelope.senderStamp();
+        if (FRAME_ID == senderStamp) {
           auto frame = cluon::extractMessage<opendlv::sim::Frame>(std::move(envelope));
           sensor.setFrame(frame);
         }
       }};
 
-    cluon::OD4Session od4{static_cast<uint16_t>(std::stoi(commandlineArguments["cid"])), onEnvelope};
+    cluon::OD4Session od4{CID};
+    od4.dataTrigger(opendlv::sim::Frame::ID(), onFrame);
 
-    double dt = 1.0 / std::stoi(commandlineArguments["freq"]);
-    while (od4.isRunning()) {
-      std::this_thread::sleep_for(std::chrono::duration<double>(dt));
+    auto atFrequency{[&FRAME_ID, &ID, &VERBOSE, &DT, &sensor, &od4]() -> bool
+      {
+        auto distanceReading = sensor.step();
 
-      auto distanceReading = sensor.step();
+        cluon::data::TimeStamp sampleTime;
+        od4.send(distanceReading, sampleTime, ID);
+        if (VERBOSE) {
+          std::cout << "Sensor reading is " << distanceReading.distance() << " m." << std::endl;
+        }
 
-      cluon::data::TimeStamp sampleTime;
-      od4.send(distanceReading, sampleTime, ID);
-      if (VERBOSE) {
-        std::cout << "Sensor reading is " << distanceReading.distance() << " m." << std::endl;
-      }
-    }
+        return true;
+      }};
+
+
+    od4.timeTrigger(FREQ, atFrequency);
   }
   return retCode;
 }
